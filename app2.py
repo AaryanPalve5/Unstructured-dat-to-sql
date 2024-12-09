@@ -3,13 +3,37 @@ import pandas as pd
 import sqlite3
 from pathlib import Path
 import json
+from geopy.geocoders import Nominatim
+import folium
 
 app = Flask(__name__)
 
 # SQLite database file
 DATABASE_FILE = "files2.db"
 
-# Helper to load data and write to SQLite
+def geocode_location(dataframe, location_column):
+    """Geocode the location column and add latitude/longitude columns."""
+    geolocator = Nominatim(user_agent="file_to_sql_app")
+    latitudes = []
+    longitudes = []
+
+    for location in dataframe[location_column]:
+        try:
+            geo_data = geolocator.geocode(location)
+            if geo_data:
+                latitudes.append(geo_data.latitude)
+                longitudes.append(geo_data.longitude)
+            else:
+                latitudes.append(None)
+                longitudes.append(None)
+        except Exception as e:
+            latitudes.append(None)
+            longitudes.append(None)
+
+    dataframe["latitude"] = latitudes
+    dataframe["longitude"] = longitudes
+
+
 def process_file_to_sql(file_path: str, file_extension: str):
     try:
         # Load the file into a DataFrame based on the extension
@@ -32,6 +56,10 @@ def process_file_to_sql(file_path: str, file_extension: str):
 
         if df.empty:
             return f"File '{file_path}' is empty or could not be parsed."
+
+        # If 'location' column exists, geocode it
+        if "location" in df.columns:
+            geocode_location(df, "location")
 
         # Use the file name (without extension) as the table name
         table_name = Path(file_path).stem
@@ -71,39 +99,35 @@ def upload_files():
     except Exception as e:
         return jsonify({"error": f"Failed to upload and process files: {str(e)}"})
 
-# Route to get the schema of a specific table
-@app.route("/schema/<table_name>")
-def get_table_schema(table_name):
+# Route to render a map for a table with latitude and longitude
+@app.route("/map/<table_name>")
+def render_map(table_name):
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
-            cursor = conn.cursor()
-            cursor.execute(f"PRAGMA table_info({table_name})")
-            schema_info = cursor.fetchall()
+            df = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
 
-        # Format the response
-        schema = [
-            {
-                "column_id": row[0],
-                "name": row[1],
-                "type": row[2],
-                "not_null": bool(row[3]),
-                "default_value": row[4],
-                "primary_key": bool(row[5]),
-            }
-            for row in schema_info
-        ]
+        if "latitude" not in df.columns or "longitude" not in df.columns:
+            return f"Table '{table_name}' does not have geocoded data."
 
-        if not schema:
-            return jsonify({"error": f"Table '{table_name}' does not exist or has no schema."})
+        # Create a map centered on the first coordinate
+        start_coords = (df["latitude"].mean(), df["longitude"].mean())
+        map_object = folium.Map(location=start_coords, zoom_start=10)
 
-        return jsonify({"table": table_name, "schema": schema})
+        # Add points to the map
+        for _, row in df.iterrows():
+            if pd.notna(row["latitude"]) and pd.notna(row["longitude"]):
+                folium.Marker(
+                    location=(row["latitude"], row["longitude"]),
+                    popup=row.get("location", "Unknown location")
+                ).add_to(map_object)
+
+        # Save the map as an HTML file
+        map_file = Path("templates/map.html")
+        map_object.save(str(map_file))
+
+        return render_template("map.html")
     except Exception as e:
-        return jsonify({"error": f"Failed to retrieve schema for table '{table_name}': {str(e)}"})
-
-# Ensure the SQLite database file exists
-if not Path(DATABASE_FILE).exists():
-    with sqlite3.connect(DATABASE_FILE) as conn:
-        conn.execute("CREATE TABLE IF NOT EXISTS example (id INTEGER PRIMARY KEY)")
+        return f"Error rendering map for table '{table_name}': {str(e)}"
 
 if __name__ == "__main__":
     # Create the templates folder and index.html if not present
