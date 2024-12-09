@@ -126,3 +126,56 @@ This application allows users to upload various file formats (e.g., CSV, Excel, 
 ### Notes
 - Ensure a stable internet connection for geocoding with `geopy`.
 - Large datasets may require additional time for geocoding and processing.
+
+
+### Google sheets connector
+
+1. Install Dependencies
+2. 
+Make sure you have Python installed. You will need to install the necessary dependencies by running:
+
+pip install flask flask-cors google-api-python-client google-auth-httplib2 google-auth-oauthlib python-dotenv openai
+
+2. Set Up Google Sheets API
+
+To authenticate with Google Sheets and fetch data, follow these steps:
+
+Enable the Google Sheets API: Go to the Google Cloud Console, create a project, and enable the Google Sheets API.
+
+Create a Service Account:
+
+In the Google Cloud Console, navigate to IAM & Admin > Service Accounts.
+
+Create a new service account with the Editor role.
+
+Download the JSON key file.
+
+Share Your Google Sheet: Share the Google Sheet with the service account email (found in the JSON key file).
+
+3. Set Up Environment Variables
+Create a .env file in the project directory to store sensitive information:
+
+GOOGLE_SERVICE_ACCOUNT_FILE=path/to/your/service_account_key.json
+
+GOOGLE_SHEET_ID=your-google-sheet-id
+
+SPREADSHEET_RANGE=your-range (e.g., 'Sheet1!A1:C10')
+
+Replace path/to/your/service_account_key.json with the path to the downloaded service account key file.
+
+Replace your-google-sheet-id with the actual ID of the Google Sheet (from the URL).
+
+Replace your-range with the range of cells you want to fetch data from (e.g., Sheet1!A1:C10).
+
+4. Running the Flask App
+In your terminal, navigate to the project directory where your app.py file is located and run the following command:
+
+python app.py
+This will start the Flask server on http://127.0.0.1:5000/.
+
+5. Test the API
+Open your browser and navigate to:
+
+http://127.0.0.1:5000/api/sheet-data
+This should return the data from your Google Sheet in JSON format.
+
