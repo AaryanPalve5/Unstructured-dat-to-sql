@@ -1,182 +1,128 @@
-# File to SQL API Documentation
+### Documentation for File-to-SQL Mapping Application
 
-This documentation outlines the structure and functionality of the `File to SQL` application, designed to handle file uploads, process them into structured tables, and store them in an SQLite database.
-
----
-
-## Overview
-The `File to SQL` API supports uploading various file types, converting them into structured tables, and storing them in an SQLite database. It also provides functionality to retrieve the schema of a specific table.
+#### Overview
+This application allows users to upload various file formats (e.g., CSV, Excel, JSON, XML, Parquet) and store the data in an SQLite database. Additionally, if the data includes a `location` column, the app geocodes these locations to add latitude and longitude, enabling interactive map visualizations.
 
 ---
 
-## Tech Stack
-- **Backend Framework**: FastAPI
-- **Frontend Templates**: Jinja2
-- **Database**: SQLite
-- **Libraries**: Pandas, OpenPyXL
+### Features
+1. **File Upload and Processing**:
+   - Supports file formats: `.csv`, `.xls`, `.xlsx`, `.json`, `.xml`, `.parquet`, `.txt` (tab-delimited).
+   - Converts files to structured tables and saves them in an SQLite database.
+   - Handles multiple file uploads at once.
+
+2. **Geocoding**:
+   - If a `location` column exists, it is geocoded to add `latitude` and `longitude` columns.
+   - Uses the `geopy` library for geocoding.
+
+3. **Map Visualization**:
+   - Generates an interactive map for tables containing geocoded data.
+   - Displays markers for each geocoded location.
+
+4. **Frontend**:
+   - Simple HTML-based interface for file uploads.
+   - Map rendering via a dynamically generated HTML template.
 
 ---
 
-## Running the Application
+### API Endpoints
 
-1. **Install Dependencies**:
-   ```bash
-   pip install fastapi uvicorn pandas openpyxl jinja2
-   ```
-
-2. **Run the Application**:
-   ```bash
-   uvicorn trial2:app --reload
-   ```
-
-3. **Access the Application**:
-   Open your browser and navigate to `http://127.0.0.1:8000`.
+#### 1. `GET /`
+**Description**: Serves the main HTML interface for file uploads.  
+**Response**: HTML page with a file upload form.
 
 ---
 
-## API Endpoints
+#### 2. `POST /upload`
+**Description**: Handles file uploads, processes files, and stores data in the SQLite database.  
+**Request**:
+- `files` (multipart/form-data): One or more files to upload.  
 
-### 1. **Root Endpoint**
-- **URL**: `/`
-- **Method**: `GET`
-- **Response**: HTML page with a file upload form.
-- **Description**: Serves the frontend for file uploads.
-
-### 2. **Upload Files**
-- **URL**: `/upload`
-- **Method**: `POST`
-- **Parameters**:
-  - `files`: A list of files to upload (supports `.csv`, `.xls`, `.xlsx`, `.json`, `.xml`, `.parquet`, `.txt`).
-- **Response**:
+**Response**:
+- JSON response containing the status of each file upload:
   ```json
   {
       "results": [
-          {"file": "filename.csv", "message": "File successfully processed and saved to table 'filename'."},
-          {"file": "filename.json", "message": "Error processing file: ..."}
+          {"file": "example.csv", "message": "File 'example.csv' successfully processed and saved to table 'example'."},
+          {"file": "data.xlsx", "message": "File 'data.xlsx' successfully processed and saved to table 'data'."}
       ]
   }
   ```
-- **Description**: Processes uploaded files and saves their contents into corresponding SQLite tables.
-
-### 3. **Get Table Schema**
-- **URL**: `/schema/{table_name}`
-- **Method**: `GET`
-- **Parameters**:
-  - `table_name`: Name of the table whose schema you want to retrieve.
-- **Response**:
-  ```json
-  {
-      "table": "table_name",
-      "columns": [
-          {"name": "column1", "type": "TEXT"},
-          {"name": "column2", "type": "INTEGER"}
-      ]
-  }
-  ```
-- **Description**: Retrieves the schema of the specified SQLite table.
 
 ---
 
-## File Processing Logic
-
-### Supported File Types
-- **CSV**: Parsed using `pandas.read_csv`.
-- **Excel (.xls, .xlsx)**: Parsed using `pandas.read_excel` with `openpyxl` engine.
-- **JSON**: Parsed using `json.load` and normalized with `pandas.json_normalize`.
-- **XML**: Parsed using `pandas.read_xml`.
-- **Parquet**: Parsed using `pandas.read_parquet`.
-- **Text (.txt)**: Assumes tab-delimited format, parsed using `pandas.read_csv`.
-
-### Processing Steps
-1. Upload the file.
-2. Save it to the `uploads/` directory.
-3. Parse the file into a Pandas DataFrame based on its extension.
-4. Save the DataFrame to SQLite using the file name (without extension) as the table name.
-
----
-
-## Project Directory Structure
-```
-project-root/
-|— trial2.py                # Main application file
-|— templates/
-   |— index.html           # Frontend template for file uploads
-|— uploads/              # Directory for storing uploaded files
-|— files2.db              # SQLite database file
-```
-
----
-
-## Frontend Template
-**File**: `templates/index.html`
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File to SQL</title>
-</head>
-<body>
-    <h1>Upload Files to SQL</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <label for="files">Upload files:</label>
-        <input type="file" id="files" name="files" multiple required>
-        <button type="submit">Submit</button>
-    </form>
-</body>
-</html>
-```
-
----
-
-## Notes for Developers
-- **Backend Developers**:
-  - Extend the `/upload` endpoint to support additional file formats if needed.
-  - Add error handling for edge cases, such as malformed files.
-  - Optimize database write operations for large files.
-
-- **Frontend Developers**:
-  - Enhance the UI/UX of the `index.html` template.
-  - Implement better error handling and feedback for users.
-  - Consider adding a dashboard to display uploaded tables and their schemas.
-
----
-
-## Example Requests
-
-### Upload Files
-**Request**:
-```bash
-curl -X POST "http://127.0.0.1:8000/upload" \
-     -F "files=@test.csv" \
-     -F "files=@test.json"
-```
+#### 3. `GET /map/<table_name>`
+**Description**: Renders an interactive map for a specific table containing `latitude` and `longitude` columns.  
+**Path Parameter**:
+- `table_name`: The name of the table to visualize.
 
 **Response**:
-```json
-{
-    "results": [
-        {"file": "test.csv", "message": "File 'test.csv' successfully processed and saved to table 'test'."},
-        {"file": "test.json", "message": "File 'test.json' successfully processed and saved to table 'test'."}
-    ]
-}
+- HTML page with an interactive map.  
+- Error message if the table does not contain geocoded data.
+
+---
+
+### File Processing Workflow
+1. **File Parsing**:
+   - Reads files into Pandas DataFrames based on the file extension.
+   - Handles empty or unsupported files gracefully.
+
+2. **Geocoding**:
+   - Checks for a `location` column in the uploaded data.
+   - Uses the `geopy` library to fetch latitude and longitude for each location.
+   - Adds `latitude` and `longitude` columns to the DataFrame.
+
+3. **Database Storage**:
+   - Saves the DataFrame as a table in the SQLite database (`files2.db`).
+   - Overwrites existing tables with the same name.
+
+---
+
+### Interactive Map
+- Uses `folium` to generate a map centered on the average latitude and longitude of the geocoded data.
+- Adds markers for each location with a popup showing the location name (if available).
+
+---
+
+### Deployment
+1. **Dependencies**:
+   Install the required Python libraries using:
+   ```bash
+   pip install flask pandas sqlite3 geopy folium openpyxl
+   ```
+
+2. **Database**:
+   - SQLite database is created automatically (`files2.db`).
+
+3. **Run the Application**:
+   ```bash
+   python app.py
+   ```
+   The app will be accessible at `http://127.0.0.1:5000`.
+
+---
+
+### File Structure
+```
+.
+├── app.py                # Main application script
+├── templates/
+│   ├── index.html        # HTML template for file upload
+│   └── map.html          # HTML template for interactive map
+├── uploads/              # Directory for uploaded files
+└── files2.db             # SQLite database (generated at runtime)
 ```
 
-### Retrieve Table Schema
-**Request**:
-```bash
-curl -X GET "http://127.0.0.1:8000/schema/test"
-```
+---
 
-**Response**:
-```json
-{
-    "table": "test",
-    "columns": [
-        {"name": "column1", "type": "TEXT"},
-        {"name": "column2", "type": "INTEGER"}
-    ]
-}
-```
+### Example Usage
+1. Navigate to the file upload page at `http://127.0.0.1:5000`.
+2. Upload one or more files.
+3. View the processing results in the JSON response.
+4. If a file contains a `location` column, access the map at `http://127.0.0.1:5000/map/<table_name>`.
 
+---
+
+### Notes
+- Ensure a stable internet connection for geocoding with `geopy`.
+- Large datasets may require additional time for geocoding and processing.
