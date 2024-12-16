@@ -1,4 +1,5 @@
 ### Documentation for File-to-SQL Mapping Application
+![](ss.jpeg)
 
 #### Overview
 This application allows users to upload various file formats (e.g., CSV, Excel, JSON, XML, Parquet) and store the data in an SQLite database. Additionally, if the data includes a `location` column, the app geocodes these locations to add latitude and longitude, enabling interactive map visualizations.
